@@ -85,6 +85,11 @@ class BuildLogAnalyzer(object):
         missing_re = r'error:\s+Installed\s+'
         missing_source_re = r'RPM build errors:'
         e_reg = 'EXCEPTION:'
+
+        # Find errors associated with not found files
+        not_found_file_re = r'cp:\s+cannot stat'
+        e_not_found_file_re = r'No such file or directory'
+
         if cls._find_patch_error(lines):
             raise BuildLogAnalyzerPatchError('Patching failed during building. '
                                              'Look at the build log %s', log_name)
@@ -94,6 +99,11 @@ class BuildLogAnalyzer(object):
             logger.debug('Found missing files which are not in SPEC file: %s', section)
             files['missing'] = cls._get_files_from_string(section)
         else:
+            not_found_files = cls._find_section(lines, not_found_file_re, e_not_found_file_re)
+            if not_found_files:
+                # Some of the sources were not found, look at build log.
+                raise BuildLogAnalyzerMakeError('Look at the build log %s', log_name)
+
             section = cls._find_section(lines, missing_source_re, e_reg)
             if section:
                 if cls._find_make_error(lines):
